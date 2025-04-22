@@ -254,7 +254,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: employees
-      BillingMode: PAYPERREQUEST
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
@@ -263,14 +263,15 @@ Resources:
           KeyType: HASH
 
   Route53Record:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: "example.com."
-      Name: "app.example.com."
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt LoadBalancer.DNSName
-        HostedZoneId: Z35SXDOTRQ7X7K
+  Type: AWS::Route53::RecordSet
+  Properties:
+    HostedZoneId: Z0273345Q8A2HWTFBAY4
+    Name: "app.spreadcom.org."
+    Type: A
+    AliasTarget:
+      DNSName: !GetAtt LoadBalancer.DNSName
+      HostedZoneId: Z0273345Q8A2HWTFBAY4
+
 
 Outputs:
   ALBDNS:

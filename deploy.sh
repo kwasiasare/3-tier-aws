@@ -1,7 +1,7 @@
 #!/bin/bash
 
 STACK_NAME="MyInfraStack"
-TEMPLATE_FILE="cloud_infra_stack.yaml"
+TEMPLATE_FILE="3-tier-aws-architecture.yaml"
 REGION="us-east-2"
 
 echo "Deploying CloudFormation stack: $STACK_NAME"
