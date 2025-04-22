@@ -19,6 +19,28 @@ Parameters:
     Default: 10.0.4.0/24
 
 Resources:
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from ALB only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound HTTP from internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -137,12 +159,15 @@ Resources:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: S3PutAccess
+        - PolicyName: S3DynamoDBWriteAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: s3:PutObject
+                Action:
+                  - s3:PutObject
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
                 Resource: '*'
 
   InstanceProfile:
@@ -156,19 +181,27 @@ Resources:
     Properties:
       LaunchTemplateData:
         InstanceType: t2.micro
-        ImageId: ami-0c55b159cbfafe1f0 # Example Amazon Linux 2 AMI (Update as needed)
+        ImageId: ami-0c55b159cbfafe1f0
         IamInstanceProfile:
           Arn: !GetAtt InstanceProfile.Arn
         UserData: !Base64 |
-          #!/bin/bash
-          yum update -y
-          yum install -y httpd
-          systemctl enable httpd
-          systemctl start httpd
+          #!/bin/bash -ex
+          wget https://aws-tc-largeobjects.s3-us-west-2.amazonaws.com/DEV-AWS-MO-GCNv2/FlaskApp.zip
+          unzip FlaskApp.zip
+          cd FlaskApp/
+          yum -y install python3-pip
+          pip install -r requirements.txt
+          yum -y install stress
+          export PHOTOS_BUCKET=employee-photo-bucket-ka-2025-04-14
+          export AWS_DEFAULT_REGION=us-east-2
+          export DYNAMO_MODE=on
+          FLASK_APP=application.py /usr/local/bin/flask run --host=0.0.0.0 --port=80
+
         NetworkInterfaces:
           - AssociatePublicIpAddress: false
             DeviceIndex: 0
-            Groups: []
+            Groups:
+              - !Ref EC2SecurityGroup
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -187,7 +220,8 @@ Resources:
       Subnets:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
-      SecurityGroups: []
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
       Scheme: internet-facing
       Type: application
 
@@ -236,7 +270,7 @@ Resources:
       Type: A
       AliasTarget:
         DNSName: !GetAtt LoadBalancer.DNSName
-        HostedZoneId: Z35SXDOTRQ7X7K  # Example zone ID for ALB
+        HostedZoneId: Z35SXDOTRQ7X7K
 
 Outputs:
   ALBDNS:
