@@ -1,31 +1,126 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Infrastructure Stack with VPC, EC2s, ALB, ASG, DynamoDB, IAM, Route53
+Description: Enhanced Infrastructure Stack with VPC, EC2s, ALB, ASG, DynamoDB, IAM, Route53
 
 Parameters:
   VpcCIDR:
     Type: String
     Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-4]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-24
+  
   PublicSubnet1CIDR:
     Type: String
     Default: 10.0.1.0/24
+    Description: CIDR block for the first public subnet
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  
   PublicSubnet2CIDR:
     Type: String
     Default: 10.0.2.0/24
+    Description: CIDR block for the second public subnet
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  
   PrivateSubnet1CIDR:
     Type: String
     Default: 10.0.3.0/24
+    Description: CIDR block for the first private subnet
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  
   PrivateSubnet2CIDR:
     Type: String
     Default: 10.0.4.0/24
+    Description: CIDR block for the second private subnet
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+  
   BucketName:
     Type: String
     Default: employee-photo-bucket-ka-2025-04-14
     Description: Name for the S3 bucket to store employee photos
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$
+    ConstraintDescription: Bucket name must be between 3 and 63 characters, contain only lowercase letters, numbers, hyphens, and cannot start or end with a hyphen
+  
+  DomainName:
+    Type: String
+    Default: spreadcom.org
+    Description: Your domain name
+  
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: The Route53 Hosted Zone ID to use for DNS records
+  
+  SubDomain:
+    Type: String
+    Default: app
+    Description: Subdomain prefix for application
+    AllowedPattern: ^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$
+    ConstraintDescription: Subdomain must be a valid DNS label
+  
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t3.micro
+      - t3.small
+      - t3.medium
+    ConstraintDescription: Must be a valid EC2 instance type
+
+  MinCapacity:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 10
+    Description: Minimum number of instances in the Auto Scaling Group
+  
+  MaxCapacity:
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 20
+    Description: Maximum number of instances in the Auto Scaling Group
+  
+  DesiredCapacity:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 10
+    Description: Desired number of instances in the Auto Scaling Group
+
+  EnvironmentName:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Development
+      - Staging
+      - Production
+    Description: Environment type for tagging and naming resources
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0cff7528ff583bf9a
+    us-east-2:
+      AMI: ami-02d1e544b84bf7502
+    us-west-1:
+      AMI: ami-0d9858aa3c6322f73
+    us-west-2:
+      AMI: ami-098e42ae54c764c35
+    eu-west-1:
+      AMI: ami-0fd8802f94ed1c969
 
 Resources:
   # S3 Bucket for Employee Photos
   EmployeePhotoBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
     Properties:
       BucketName: !Ref BucketName
       AccessControl: Private
@@ -40,6 +135,19 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToGlacierAndEventuallyExpire
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+            ExpirationInDays: 365
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-employee-photos"
 
   # S3 Bucket Policy to allow access from EC2 instances
   EmployeePhotoBucketPolicy:
@@ -60,7 +168,6 @@ Resources:
               - !Sub arn:aws:s3:::${EmployeePhotoBucket}
               - !Sub arn:aws:s3:::${EmployeePhotoBucket}/*
 
-
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -71,6 +178,24 @@ Resources:
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0  
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-EC2-SG"
 
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -82,6 +207,16 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-ALB-SG"
 
   VPC:
     Type: AWS::EC2::VPC
@@ -90,11 +225,19 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
         - Key: Name
-          Value: MyVPC
+          Value: !Sub "${EnvironmentName}-VPC"
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-IGW"
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -109,6 +252,11 @@ Resources:
       CidrBlock: !Ref PublicSubnet1CIDR
       AvailabilityZone: !Select [0, !GetAZs '']
       MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PublicSubnet1"
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -117,6 +265,11 @@ Resources:
       CidrBlock: !Ref PublicSubnet2CIDR
       AvailabilityZone: !Select [1, !GetAZs '']
       MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PublicSubnet2"
 
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
@@ -124,6 +277,11 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: !Ref PrivateSubnet1CIDR
       AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PrivateSubnet1"
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
@@ -131,11 +289,21 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: !Ref PrivateSubnet2CIDR
       AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PrivateSubnet2"
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PublicRouteTable"
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -159,17 +327,35 @@ Resources:
 
   ElasticIP:
     Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-NAT-EIP"
 
   NATGateway:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt ElasticIP.AllocationId
       SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-NATGateway"
 
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-PrivateRouteTable"
 
   PrivateRoute:
     Type: AWS::EC2::Route
@@ -190,6 +376,12 @@ Resources:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/ec2/${EnvironmentName}-FlaskApp"
+      RetentionInDays: 7
+
   IAMRole:
     Type: AWS::IAM::Role
     Properties:
@@ -200,6 +392,8 @@ Resources:
             Principal:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Policies:
         - PolicyName: S3DynamoDBWriteAccess
           PolicyDocument:
@@ -212,7 +406,13 @@ Resources:
                   - s3:ListBucket
                   - dynamodb:PutItem
                   - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
                 Resource: '*'
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -222,30 +422,157 @@ Resources:
 
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - install_cfn
+            - install_app
+            - configure_cloudwatch
+        install_cfn:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: '000400'
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.LaunchTemplate.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchTemplate --region ${AWS::Region}
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+        install_app:
+          packages:
+            yum:
+              python3-pip: []
+              wget: []
+              unzip: []
+          commands:
+            01_download_app:
+              command: "wget https://aws-tc-largeobjects.s3-us-west-2.amazonaws.com/DEV-AWS-MO-GCNv2/FlaskApp.zip"
+            02_unzip_app:
+              command: "unzip FlaskApp.zip"
+            03_install_requirements:
+              command: "pip3 install -r FlaskApp/requirements.txt"
+        configure_cloudwatch:
+          files:
+            /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json:
+              content: !Sub |
+                {
+                  "logs": {
+                    "logs_collected": {
+                      "files": {
+                        "collect_list": [
+                          {
+                            "file_path": "/var/log/messages",
+                            "log_group_name": "${CloudWatchLogsGroup}",
+                            "log_stream_name": "{instance_id}/system",
+                            "timezone": "UTC"
+                          },
+                          {
+                            "file_path": "/home/ec2-user/FlaskApp/app.log",
+                            "log_group_name": "${CloudWatchLogsGroup}",
+                            "log_stream_name": "{instance_id}/application",
+                            "timezone": "UTC"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "metrics": {
+                    "metrics_collected": {
+                      "mem": {
+                        "measurement": [
+                          "mem_used_percent"
+                        ]
+                      },
+                      "swap": {
+                        "measurement": [
+                          "swap_used_percent"
+                        ]
+                      }
+                    }
+                  }
+                }
+          commands:
+            01_start_cloudwatch_agent:
+              command: "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s"
     Properties:
       LaunchTemplateData:
-        InstanceType: t2.micro
-        ImageId: ami-0c55b159cbfafe1f0
+        InstanceType: !Ref InstanceType
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
         IamInstanceProfile:
           Arn: !GetAtt InstanceProfile.Arn
-        UserData: !Base64 |
-          #!/bin/bash -ex
-          wget https://aws-tc-largeobjects.s3-us-west-2.amazonaws.com/DEV-AWS-MO-GCNv2/FlaskApp.zip
-          unzip FlaskApp.zip
-          cd FlaskApp/
-          yum -y install python3-pip
-          pip install -r requirements.txt
-          yum -y install stress
-          export PHOTOS_BUCKET=employee-photo-bucket-ka-2025-04-14
-          export AWS_DEFAULT_REGION=us-east-2
-          export DYNAMO_MODE=on
-          FLASK_APP=application.py /usr/local/bin/flask run --host=0.0.0.0 --port=80
-
-        NetworkInterfaces:
-          - AssociatePublicIpAddress: false
-            DeviceIndex: 0
-            Groups:
-              - !Ref EC2SecurityGroup
+        UserData: !Base64 
+          Fn::Sub: |
+            #!/bin/bash -ex
+            yum update -y
+            yum install -y aws-cfn-bootstrap amazon-cloudwatch-agent
+            
+            # Install and configure CloudWatch agent
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchTemplate --region ${AWS::Region}
+            
+            # Create a health check endpoint
+            mkdir -p /home/ec2-user/FlaskApp
+            echo '
+            import os
+            from flask import Flask, jsonify
+            
+            app = Flask(__name__)
+            
+            @app.route("/health")
+            def health():
+                return jsonify({"status": "healthy"})
+            
+            if __name__ == "__main__":
+                app.run(host="0.0.0.0", port=8080)
+            ' > /home/ec2-user/FlaskApp/health.py
+            
+            # Start the health check service
+            cd /home/ec2-user
+            nohup python3 FlaskApp/health.py > FlaskApp/health.log 2>&1 &
+            
+            # Start the main Flask application
+            cd /home/ec2-user/FlaskApp
+            export PHOTOS_BUCKET=${BucketName}
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            export DYNAMO_MODE=on
+            export FLASK_APP=application.py
+            nohup flask run --host=0.0.0.0 --port=80 > app.log 2>&1 &
+            
+            # Signal the result
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource AutoScalingGroup --region ${AWS::Region}
+        SecurityGroupIds:
+          - !Ref EC2SecurityGroup
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+              DeleteOnTermination: true
+              Encrypted: true
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Environment
+                Value: !Ref EnvironmentName
+              - Key: Name
+                Value: !Sub "${EnvironmentName}-WebServer"
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -256,7 +583,19 @@ Resources:
       TargetType: instance
       HealthCheckProtocol: HTTP
       HealthCheckPort: traffic-port
-      HealthCheckPath: /
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-TargetGroup"
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -268,6 +607,18 @@ Resources:
         - !Ref LoadBalancerSecurityGroup
       Scheme: internet-facing
       Type: application
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: 60
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: true
+        - Key: deletion_protection.enabled
+          Value: false
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-ALB"
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -281,6 +632,17 @@ Resources:
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: AttachGateway
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+        Count: !Ref DesiredCapacity
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT5M
+        WaitOnResourceSignals: true
     Properties:
       VPCZoneIdentifier:
         - !Ref PrivateSubnet1
@@ -288,42 +650,98 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
-      MinSize: '2'
-      MaxSize: '4'
-      DesiredCapacity: '2'
+      MinSize: !Ref MinCapacity
+      MaxSize: !Ref MaxCapacity
+      DesiredCapacity: !Ref DesiredCapacity
       TargetGroupARNs:
         - !Ref TargetGroup
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-ASG-Instance"
+          PropagateAtLaunch: true
 
+  # Auto Scaling Policies
+  CPUScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 70.0
+
+  # DynamoDB Backup
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
     Properties:
       TableName: employees
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
       KeySchema:
         - AttributeName: id
           KeyType: HASH
-
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-EmployeesTable"
 
   Route53Record:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: Z0273345Q8A2HWTFBAY4
-      Name: "app.spreadcom.org"
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "${SubDomain}.${DomainName}."
       Type: A
       AliasTarget:
         DNSName: !GetAtt LoadBalancer.DNSName
-        HostedZoneId: ZLMOA37VPKANP
+        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
 
 Outputs:
   ALBDNS:
     Description: DNS of ALB
     Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBDNS"
+  
+  ALBCanonicalHostedZoneID:
+    Description: Canonical Hosted Zone ID of ALB
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBHostedZoneID"
+  
   BucketName:
     Description: S3 Bucket Name
     Value: !Ref EmployeePhotoBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-BucketName"
+  
   AppURL:
     Description: Application URL
-    Value: !Sub "http://app.spreadcom.org"
+    Value: !Sub "http://${SubDomain}.${DomainName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-AppURL"
+  
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+  
+  DynamoDBTableName:
+    Description: DynamoDB Table Name
+    Value: !Ref DynamoDBTable
+    Export:
+      Name: !Sub "${AWS::StackName}-DynamoDBTableName"
