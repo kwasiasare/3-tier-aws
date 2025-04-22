@@ -10,6 +10,7 @@ aws cloudformation deploy \
   --stack-name $STACK_NAME \
   --template-file $TEMPLATE_FILE \
   --capabilities CAPABILITY_NAMED_IAM \
+  --capabilities CAPABILITY_IAM \
   --region $REGION \
   --parameter-overrides \
     VpcCIDR=10.0.0.0/16 \

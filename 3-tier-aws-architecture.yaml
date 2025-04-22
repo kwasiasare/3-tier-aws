@@ -17,8 +17,50 @@ Parameters:
   PrivateSubnet2CIDR:
     Type: String
     Default: 10.0.4.0/24
+  BucketName:
+    Type: String
+    Default: employee-photo-bucket-ka-2025-04-14
+    Description: Name for the S3 bucket to store employee photos
 
 Resources:
+  # S3 Bucket for Employee Photos
+  EmployeePhotoBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # S3 Bucket Policy to allow access from EC2 instances
+  EmployeePhotoBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EmployeePhotoBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt IAMRole.Arn
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:aws:s3:::${EmployeePhotoBucket}
+              - !Sub arn:aws:s3:::${EmployeePhotoBucket}/*
+
+
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -166,6 +208,8 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
                   - dynamodb:PutItem
                   - dynamodb:UpdateItem
                 Resource: '*'
@@ -262,18 +306,24 @@ Resources:
         - AttributeName: id
           KeyType: HASH
 
-  Route53Record:
-  Type: AWS::Route53::RecordSet
-  Properties:
-    HostedZoneId: Z0273345Q8A2HWTFBAY4
-    Name: "app.spreadcom.org."
-    Type: A
-    AliasTarget:
-      DNSName: !GetAtt LoadBalancer.DNSName
-      HostedZoneId: Z0273345Q8A2HWTFBAY4
 
+  Route53Record:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z0273345Q8A2HWTFBAY4
+      Name: "app.spreadcom.org"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt LoadBalancer.DNSName
+        HostedZoneId: ZLMOA37VPKANP
 
 Outputs:
   ALBDNS:
     Description: DNS of ALB
     Value: !GetAtt LoadBalancer.DNSName
+  BucketName:
+    Description: S3 Bucket Name
+    Value: !Ref EmployeePhotoBucket
+  AppURL:
+    Description: Application URL
+    Value: !Sub "http://app.spreadcom.org"
