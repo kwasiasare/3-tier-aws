@@ -759,9 +759,6 @@ resource "aws_autoscaling_group" "app" {
     propagate_at_launch = true
   }
   
-  # Creation policy and update policy are not directly supported in Terraform
-  # Instead, use lifecycle blocks and aws_autoscaling_lifecycle_hook if needed
-  
   depends_on = [aws_internet_gateway.igw]
 }
 
