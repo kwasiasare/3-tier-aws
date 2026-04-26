@@ -15,7 +15,7 @@ param keyVaultId string
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: toLower('${projectName}${toLower(environment)}st${uniqueString(resourceGroup().id)}')
+  name: toLower('${take(projectName, 8)}${take(toLower(environment), 3)}st${take(uniqueString(resourceGroup().id), 11)}')
   location: location
   sku: {
     name: 'Standard_LRS'
