@@ -7,9 +7,6 @@ param projectName string
 @description('Environment type')
 param environment string
 
-@description('Virtual Network resource ID')
-param vnetId string
-
 @description('Database subnet resource ID')
 param databaseSubnetId string
 
