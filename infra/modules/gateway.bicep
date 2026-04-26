@@ -15,7 +15,7 @@ param containerAppFqdn string
 
 // Public IP Address
 resource publicIp 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-appgw-pip-${uniqueString(resourceGroup().id)}'
+  name: '${projectName}-${toLower(environment)}-appgw-pip-${uniqueString(resourceGroup().id, 'pip')}'
   location: location
   sku: {
     name: 'Standard'
@@ -25,7 +25,7 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
     publicIPAllocationMethod: 'Static'
     publicIPAddressVersion: 'IPv4'
     dnsSettings: {
-      domainNameLabel: '${toLower(projectName)}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}'
+      domainNameLabel: '${toLower(projectName)}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'pip')}'
     }
   }
   tags: {
@@ -37,7 +37,7 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
 
 // Application Gateway
 resource applicationGateway 'Microsoft.Network/applicationGateways@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}'
+  name: '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}'
   location: location
   properties: {
     sku: {
@@ -108,10 +108,10 @@ resource applicationGateway 'Microsoft.Network/applicationGateways@2024-01-01' =
         name: 'appGatewayHttpListener'
         properties: {
           frontendIPConfiguration: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}', 'appGwPublicFrontendIp')
+            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}', 'appGwPublicFrontendIp')
           }
           frontendPort: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}', 'port_80')
+            id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}', 'port_80')
           }
           protocol: 'Http'
         }
@@ -124,13 +124,13 @@ resource applicationGateway 'Microsoft.Network/applicationGateways@2024-01-01' =
           ruleType: 'Basic'
           priority: 100
           httpListener: {
-            id: resourceId('Microsoft.Network/applicationGateways/httpListeners', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}', 'appGatewayHttpListener')
+            id: resourceId('Microsoft.Network/applicationGateways/httpListeners', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}', 'appGatewayHttpListener')
           }
           backendAddressPool: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendAddressPools', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}', 'containerAppBackendPool')
+            id: resourceId('Microsoft.Network/applicationGateways/backendAddressPools', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}', 'containerAppBackendPool')
           }
           backendHttpSettings: {
-            id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id)}', 'appGatewayBackendHttpSettings')
+            id: resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', '${projectName}-${toLower(environment)}-appgw-${uniqueString(resourceGroup().id, 'appgw')}', 'appGatewayBackendHttpSettings')
           }
         }
       }
