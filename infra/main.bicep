@@ -1,4 +1,4 @@
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
 
 @description('Environment type for tagging and naming resources')
 @allowed(['Development', 'Staging', 'Production'])
@@ -41,21 +41,9 @@ param maxReplicas int = 4
 @description('Container image for the application')
 param containerImage string = 'nginx:latest'
 
-// Resource Group
-resource rg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
-  name: '${projectName}-${toLower(environment)}-rg'
-  location: location
-  tags: {
-    environment: environment
-    project: projectName
-    managedBy: 'bicep'
-  }
-}
-
 // Monitoring Module
 module monitoring 'modules/monitoring.bicep' = {
   name: 'monitoring'
-  scope: rg
   params: {
     location: location
     projectName: projectName
@@ -66,7 +54,6 @@ module monitoring 'modules/monitoring.bicep' = {
 // Network Module
 module network 'modules/network.bicep' = {
   name: 'network'
-  scope: rg
   params: {
     location: location
     projectName: projectName
@@ -81,7 +68,6 @@ module network 'modules/network.bicep' = {
 // Security Module
 module security 'modules/security.bicep' = {
   name: 'security'
-  scope: rg
   params: {
     location: location
     projectName: projectName
@@ -93,12 +79,10 @@ module security 'modules/security.bicep' = {
 // Storage Module
 module storage 'modules/storage.bicep' = {
   name: 'storage'
-  scope: rg
   params: {
     location: location
     projectName: projectName
     environment: environment
-    vnetId: network.outputs.vnetId
     databaseSubnetId: network.outputs.databaseSubnetId
     keyVaultId: security.outputs.keyVaultId
   }
@@ -107,12 +91,10 @@ module storage 'modules/storage.bicep' = {
 // Database Module
 module database 'modules/database.bicep' = {
   name: 'database'
-  scope: rg
   params: {
     location: location
     projectName: projectName
     environment: environment
-    vnetId: network.outputs.vnetId
     databaseSubnetId: network.outputs.databaseSubnetId
     keyVaultId: security.outputs.keyVaultId
   }
@@ -121,12 +103,10 @@ module database 'modules/database.bicep' = {
 // Compute Module
 module compute 'modules/compute.bicep' = {
   name: 'compute'
-  scope: rg
   params: {
     location: location
     projectName: projectName
     environment: environment
-    vnetId: network.outputs.vnetId
     privateSubnetId: network.outputs.privateSubnetId
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
@@ -142,23 +122,18 @@ module compute 'modules/compute.bicep' = {
 // Gateway Module
 module gateway 'modules/gateway.bicep' = {
   name: 'gateway'
-  scope: rg
   params: {
     location: location
     projectName: projectName
     environment: environment
-    vnetId: network.outputs.vnetId
     publicSubnetId: network.outputs.publicSubnetId
     containerAppFqdn: compute.outputs.containerAppFqdn
-    domainName: domainName
-    subdomain: subdomain
   }
 }
 
 // DNS Module
 module dns 'modules/dns.bicep' = {
   name: 'dns'
-  scope: rg
   params: {
     domainName: domainName
     subdomain: subdomain
@@ -169,7 +144,6 @@ module dns 'modules/dns.bicep' = {
 // Grant Container App access to resources
 module rbac 'modules/rbac.bicep' = {
   name: 'rbac'
-  scope: rg
   params: {
     containerAppPrincipalId: compute.outputs.containerAppPrincipalId
     cosmosDbAccountId: database.outputs.cosmosDbAccountId
@@ -180,7 +154,6 @@ module rbac 'modules/rbac.bicep' = {
 
 // Outputs
 output primaryUrl string = 'https://${subdomain}.${domainName}'
-output resourceGroupName string = rg.name
 output containerAppUrl string = 'https://${compute.outputs.containerAppFqdn}'
 output cosmosDbEndpoint string = database.outputs.cosmosDbEndpoint
 output storageAccountName string = storage.outputs.storageAccountName
