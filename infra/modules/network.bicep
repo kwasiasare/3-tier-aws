@@ -21,7 +21,7 @@ param databaseSubnetCidr string
 
 // Network Security Group for Application Gateway
 resource appGatewayNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-appgw-nsg'
+  name: '${projectName}-${toLower(environment)}-appgw-nsg-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     securityRules: [
@@ -75,7 +75,7 @@ resource appGatewayNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
 
 // Network Security Group for Container Apps
 resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-container-nsg'
+  name: '${projectName}-${toLower(environment)}-container-nsg-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     securityRules: [
@@ -103,7 +103,7 @@ resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = 
 
 // Network Security Group for Database Subnet
 resource databaseNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-db-nsg'
+  name: '${projectName}-${toLower(environment)}-db-nsg-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     securityRules: [
@@ -131,7 +131,7 @@ resource databaseNsg 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
 
 // Virtual Network
 resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
-  name: '${projectName}-${toLower(environment)}-vnet'
+  name: '${projectName}-${toLower(environment)}-vnet-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     addressSpace: {
