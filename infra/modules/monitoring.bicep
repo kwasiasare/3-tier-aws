@@ -9,7 +9,7 @@ param environment string
 
 // Log Analytics Workspace
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: '${projectName}-${toLower(environment)}-law'
+  name: '${projectName}-${toLower(environment)}-law-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     sku: {
@@ -29,7 +29,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
 
 // Application Insights
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: '${projectName}-${toLower(environment)}-ai'
+  name: '${projectName}-${toLower(environment)}-ai-${uniqueString(resourceGroup().id)}'
   location: location
   kind: 'web'
   properties: {
