@@ -12,7 +12,7 @@ param logAnalyticsWorkspaceId string
 
 // Key Vault
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: toLower('${take(projectName, 11)}-kv-${take(uniqueString(resourceGroup().id), 8)}')
+  name: toLower('${take(projectName, 11)}-kv-${take(uniqueString(resourceGroup().id, 'kv'), 8)}')
   location: location
   properties: {
     sku: {
