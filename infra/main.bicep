@@ -85,6 +85,7 @@ module storage 'modules/storage.bicep' = {
     environment: environment
     databaseSubnetId: network.outputs.databaseSubnetId
     keyVaultId: security.outputs.keyVaultId
+    storagePrivateDnsZoneId: network.outputs.storagePrivateDnsZoneId
   }
 }
 
@@ -97,6 +98,7 @@ module database 'modules/database.bicep' = {
     environment: environment
     databaseSubnetId: network.outputs.databaseSubnetId
     keyVaultId: security.outputs.keyVaultId
+    cosmosPrivateDnsZoneId: network.outputs.cosmosPrivateDnsZoneId
   }
 }
 
