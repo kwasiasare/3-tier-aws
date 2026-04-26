@@ -37,7 +37,7 @@ param keyVaultUri string
 
 // Container Apps Environment
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: '${projectName}-${toLower(environment)}-cae-${uniqueString(resourceGroup().id)}'
+  name: '${projectName}-${toLower(environment)}-cae-${uniqueString(resourceGroup().id, 'cae')}'
   location: location
   properties: {
     appLogsConfiguration: {
@@ -62,7 +62,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 
 // Container App
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${projectName}-${toLower(environment)}-app-${uniqueString(resourceGroup().id)}'
+  name: '${projectName}-${toLower(environment)}-app-${uniqueString(resourceGroup().id, 'app')}'
   location: location
   identity: {
     type: 'SystemAssigned'
