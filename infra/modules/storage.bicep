@@ -7,9 +7,6 @@ param projectName string
 @description('Environment type')
 param environment string
 
-@description('Virtual Network resource ID')
-param vnetId string
-
 @description('Database subnet resource ID')
 param databaseSubnetId string
 
@@ -136,7 +133,7 @@ resource storagePrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateD
       {
         name: 'privatelink-blob-core-windows-net'
         properties: {
-          privateDnsZoneId: resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.core.windows.net')
+          privateDnsZoneId: resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.${az.environment().suffixes.storage}')
         }
       }
     ]
@@ -148,7 +145,7 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   parent: keyVault
   name: 'storage-connection-string'
   properties: {
-    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
   }
 }
 
