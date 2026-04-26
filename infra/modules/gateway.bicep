@@ -7,20 +7,11 @@ param projectName string
 @description('Environment type')
 param environment string
 
-@description('Virtual Network resource ID')
-param vnetId string
-
 @description('Public subnet resource ID')
 param publicSubnetId string
 
 @description('Container App FQDN')
 param containerAppFqdn string
-
-@description('Domain name')
-param domainName string
-
-@description('Subdomain prefix')
-param subdomain string
 
 // Public IP Address
 resource publicIp 'Microsoft.Network/publicIPAddresses@2024-01-01' = {
