@@ -13,9 +13,12 @@ param databaseSubnetId string
 @description('Key Vault resource ID')
 param keyVaultId string
 
+@description('Storage private DNS zone resource ID')
+param storagePrivateDnsZoneId string
+
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: toLower('${take(projectName, 8)}${take(toLower(environment), 3)}st${take(uniqueString(resourceGroup().id), 11)}')
+  name: toLower('st${take(projectName, 6)}${take(toLower(environment), 4)}${take(uniqueString(resourceGroup().id, 'storage'), 12)}')
   location: location
   sku: {
     name: 'Standard_LRS'
@@ -133,7 +136,7 @@ resource storagePrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateD
       {
         name: 'privatelink-blob-core-windows-net'
         properties: {
-          privateDnsZoneId: resourceId('Microsoft.Network/privateDnsZones', 'privatelink.blob.${az.environment().suffixes.storage}')
+          privateDnsZoneId: storagePrivateDnsZoneId
         }
       }
     ]
