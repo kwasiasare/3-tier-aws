@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "Production"
+    },
+    "projectName": {
+      "value": "3-tier-aws"
+    },
+    "location": {
+      "value": "eastus2"
+    },
+    "domainName": {
+      "value": "spreadcom.org"
+    },
+    "subdomain": {
+      "value": "app"
+    },
+    "vnetCidr": {
+      "value": "10.0.0.0/16"
+    },
+    "publicSubnetCidr": {
+      "value": "10.0.1.0/24"
+    },
+    "privateSubnetCidr": {
+      "value": "10.0.2.0/24"
+    },
+    "databaseSubnetCidr": {
+      "value": "10.0.3.0/24"
+    },
+    "minReplicas": {
+      "value": 2
+    },
+    "maxReplicas": {
+      "value": 4
+    },
+    "containerImage": {
+      "value": "nginx:latest"
+    }
+  }
+}
