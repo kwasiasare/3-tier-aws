@@ -211,7 +211,7 @@ resource cosmosPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtual
 
 // Private DNS Zone for Storage
 resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
-  name: 'privatelink.blob.core.windows.net'
+  name: 'privatelink.blob.${az.environment().suffixes.storage}'
   location: 'global'
   tags: {
     environment: environment
