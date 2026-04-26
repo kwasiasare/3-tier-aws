@@ -13,9 +13,12 @@ param databaseSubnetId string
 @description('Key Vault resource ID')
 param keyVaultId string
 
+@description('Cosmos private DNS zone resource ID')
+param cosmosPrivateDnsZoneId string
+
 // Cosmos DB Account
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
-  name: '${projectName}-${toLower(environment)}-cosmos-${uniqueString(resourceGroup().id)}'
+  name: '${projectName}-${toLower(environment)}-cosmos-${uniqueString(resourceGroup().id, 'cosmos')}'
   location: location
   kind: 'GlobalDocumentDB'
   properties: {
@@ -127,7 +130,7 @@ resource cosmosPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDn
       {
         name: 'privatelink-documents-azure-com'
         properties: {
-          privateDnsZoneId: resourceId('Microsoft.Network/privateDnsZones', 'privatelink.documents.azure.com')
+          privateDnsZoneId: cosmosPrivateDnsZoneId
         }
       }
     ]
