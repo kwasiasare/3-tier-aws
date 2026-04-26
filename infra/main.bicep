@@ -5,7 +5,7 @@ targetScope = 'resourceGroup'
 param environment string = 'Production'
 
 @description('Project name for resource naming')
-param projectName string = '3-tier-aws'
+param projectName string = 'tier3'
 
 @description('Primary deployment region')
 param location string = 'eastus2'
